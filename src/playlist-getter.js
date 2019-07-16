@@ -63,6 +63,8 @@ module.exports = async config => {
     return result;
   }
 
+  let video_names_cache = {};
+
   let self = {
     valid_video_link: link => {
       return dissect_link(link).video_id !== null;
@@ -72,21 +74,30 @@ module.exports = async config => {
       return dissect_link(link).playlist_id !== null;
     },
 
-    download_video: async (link, directory, audio_only=false, prefix=null) => {
+    get_video_name: async link => {
+      if (!video_names_cache[link]) {
+        let { video_id } = dissect_link(link);
+        let result = await fetch_api_query("/videos", {
+          part: 'snippet',
+          id: video_id
+        });
+
+        let name = result.items[0].snippet.title;
+        video_names_cache[link] = name;
+        return name;
+      } else {
+        return video_names_cache[link];
+      }
+    },
+
+    download_video: async (link, directory, audio_only=false) => {
       await fs.mkdir(directory, { recursive: true });
 
       let { video_id } = dissect_link(link);
       if (video_id === null)
         throw new Error("Invalid video link");
 
-      let result = await fetch_api_query("/videos", {
-        part: 'snippet',
-        id: video_id
-      });
-
-      let video_name = result.items[0].snippet.title;
-      if (prefix)
-        video_name = prefix + video_name;
+      let video_name = await self.get_video_name(link);
       let clean_vname = clean(video_name);
       let base_file_path = path.join(directory, clean_vname);
 

@@ -8,6 +8,7 @@ const fsp = fs.promises;
 
 const config_file = path.join(__dirname, '../config.json');
 const metadata_file = path.join(__dirname, '../downloads.json');
+const playlist_file = path.join(__dirname, '../playlist_downloads.json');
 
 fs.createWriteStream(config_file, { flags: 'a+' }).destroy();
 const config = Object.assign({
@@ -40,18 +41,30 @@ async function main() {
     }
   }
 
-  async function filter_async(array, predicate) {
-    let filter_pass = await Promise.all(array.map(async el => [await predicate(el), el]));
-    return filter_pass.filter(([pred, _]) => pred).map(([_, el]) => el);
+  // async function filter_async(array, predicate) {
+  //   let filter_pass = await Promise.all(array.map(async el => [await predicate(el), el]));
+  //   return filter_pass.filter(([pred, _]) => pred).map(([_, el]) => el);
+  // }
+
+  async function clear_removed_files() {
+    for (let link of Object.keys(metadata)) {
+      if (metadata[link].status === 'finished' && !(await access_bool(metadata[link].file, fs.constants.R_OK)))
+        delete metadata[link];
+    }
   }
 
   async function update_saved_completions() {
-    let completed_links = Object.keys(metadata).filter(link => metadata[link].status === 'finished');
-    let existing_files = await filter_async(completed_links, async link => await access_bool(metadata[link].file, fs.constants.R_OK));
+    await clear_removed_files();
     let to_save = {};
-    for (let link of existing_files)
-      to_save[link] = metadata[link];
+    for (let link of Object.keys(metadata)) {
+      if (metadata[link].status === 'finished')
+        to_save[link] = metadata[link];
+    }
     await fsp.writeFile(metadata_file, JSON.stringify(to_save, null, 2));
+  }
+
+  async function update_saved_playlists() {
+
   }
 
   function enqueue_link(link, options) {
@@ -76,16 +89,14 @@ async function main() {
             metadata[active].status = 'downloading';
             try {
 
-              let video_data = await playlist_getter.download_video(
+              let { file } = await playlist_getter.download_video(
                 active, 
                 metadata[active].directory, 
-                audio_only=(metadata[active].type === 'audio'),
-                prefix=metadata[active].prefix);
+                audio_only=(metadata[active].type === 'audio'));
 
               Object.assign(metadata[active], {
                 status: 'finished',
-                name: video_data.name,
-                file: video_data.file
+                file: file
               });
               update_saved_completions();
               metadata[active].resolve(metadata[active]);
@@ -107,6 +118,7 @@ async function main() {
   let playlist_getter = await PlaylistGetter(config);
 
   let metadata = {};
+  let playlists = {};
   let queue = [];
   let semaphore = config.max_simultaneous_downloads;
 
@@ -124,11 +136,14 @@ async function main() {
     next();
   })
 
-  webutil.get(app, "/download_video", ["url"], (req, res) => {
+  webutil.get(app, "/download_video", ["url"], async (req, res) => {
     if (!playlist_getter.valid_video_link(req.query.url)) {
       webutil.error(req, res, "Invalid-Link", "The given url is invalid");
     } else {
-      enqueue_link(req.query.url, { type: req.query.audio_only === 'true' ? 'audio' : 'video' });
+      enqueue_link(req.query.url, { 
+        type: req.query.audio_only === 'true' ? 'audio' : 'video',
+        name: await playlist_getter.get_video_name(req.query.link)
+      });
       webutil.success(req, res, {});
     }
   });
@@ -137,14 +152,23 @@ async function main() {
     if (!playlist_getter.valid_playlist_link(req.query.url)) {
       webutil.error(req, res, "Invalid-Link", "The given url is invalid");
     } else {
+
       let { name, items } = await playlist_getter.playlist_data(req.query.url);
       let playlist_dir = path.join(config.playlist_path, clean(name));
+      playlists[req.query.url] = {
+        status: 'downloading',
+        directory: playlist_dir,
+        file: playlist_dir + ".zip",
+        name: name
+      };
       for (let i = 0; i < items.length; i++) {
         let link = items[i];
+        let prefix = req.query.numbered === 'true' ? pad_num(i, items.length) + ". " : "";
+        let name = prefix + await playlist_getter.get_video_name(link);
         enqueue_link(link, {
           type: req.query.audio_only === 'true' ? 'audio' : 'video',
           directory: playlist_dir,
-          prefix: req.query.numbered === 'true' ? pad_num(i, items.length) + ". " : null
+          name: name
         });
       }
       webutil.success(req, res, {});
@@ -160,7 +184,8 @@ async function main() {
     }
   });
 
-  app.get("/view_downloads", (req, res) => {
+  app.get("/view_downloads", async (req, res) => {
+    await clear_removed_files();
     webutil.success(req, res, Object.keys(metadata).map(link => {
       let result = {
         link: link,

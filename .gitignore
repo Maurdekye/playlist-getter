@@ -3,3 +3,4 @@ public/downloads/
 temp/
 config.json
 downloads.json
+playlist_downloads.json
