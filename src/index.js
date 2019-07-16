@@ -11,8 +11,7 @@ const config_file = path.join(__dirname, '../config.json');
 const metadata_file = path.join(__dirname, '../downloads.json');
 const playlist_file = path.join(__dirname, '../playlist_downloads.json');
 
-fs.createWriteStream(config_file, { flags: 'a+' }).destroy();
-const config = Object.assign({
+let default_config = {
   api_token: null,
   api_endpoint: "https://www.googleapis.com/youtube/v3",
   video_path: "public/downloads/videos",
@@ -22,8 +21,14 @@ const config = Object.assign({
   max_simultaneous_downloads: 5,
   client_poll_rate: 3000,
   port: 80
-}, require(config_file));
-fs.writeFileSync(config_file, JSON.stringify(config, null, 2));
+}
+try {
+  fs.writeFileSync(config_file, JSON.stringify(default_config, null, 2), { flags: 'wx' });
+  config = default_config;
+} catch (err) {
+  config = Object.assign(default_config, require(config_file));
+  fs.writeFileSync(config_file, JSON.stringify(config, null, 2), { flags: 'w' });
+}
 
 function clean(str) {
   return str.replace(/[\/\\:?*"<>|]/g, "");
@@ -129,7 +134,12 @@ async function main() {
     });
   }
   
-  let playlist_getter = await PlaylistGetter(config);
+  try {
+    let playlist_getter = await PlaylistGetter(config);
+  } catch (err) {
+    console.log(err.message + `; check ${path.basename(config_file)}`);
+    return;
+  }
 
   let metadata = {};
   let playlists = {};
