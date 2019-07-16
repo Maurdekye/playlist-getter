@@ -5,6 +5,7 @@ const webutil = require('./webutil')
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
+const archiver = require('archiver');
 
 const config_file = path.join(__dirname, '../config.json');
 const metadata_file = path.join(__dirname, '../downloads.json');
@@ -16,6 +17,7 @@ const config = Object.assign({
   api_endpoint: "https://www.googleapis.com/youtube/v3",
   video_path: "public/downloads/videos",
   playlist_path: "public/downloads/playlists",
+  zipped_playlist_path: "public/downloads/zipped-playlists",
   temp_dir: "temp",
   max_simultaneous_downloads: 5,
   port: 80
@@ -41,15 +43,14 @@ async function main() {
     }
   }
 
-  // async function filter_async(array, predicate) {
-  //   let filter_pass = await Promise.all(array.map(async el => [await predicate(el), el]));
-  //   return filter_pass.filter(([pred, _]) => pred).map(([_, el]) => el);
-  // }
-
   async function clear_removed_files() {
     for (let link of Object.keys(metadata)) {
       if (metadata[link].status === 'finished' && !(await access_bool(metadata[link].file, fs.constants.R_OK)))
         delete metadata[link];
+    }
+    for (let link of Object.keys(playlists)) {
+      if (playlists[link].status === 'finished' && !(await access_bool(playlists[link].file, fs.constants.R_OK)))
+        delete playlists[link];
     }
   }
 
@@ -63,13 +64,22 @@ async function main() {
     await fsp.writeFile(metadata_file, JSON.stringify(to_save, null, 2));
   }
 
-  async function update_saved_playlists() {
-
+  async function update_saved_completed_playlists() {
+    await clear_removed_files();
+    let to_save = {};
+    for (let link of Object.keys(playlists)) {
+      if (playlists[link].status === 'finished')
+        to_save[link] = playlists[link];
+    }
+    await fsp.writeFile(playlist_file, JSON.stringify(to_save, null, 2));
   }
 
   function enqueue_link(link, options) {
-    if (metadata[link] && metadata[link].status === 'finished')
+    if (metadata[link] && metadata[link].status === 'finished') {
+      if (options.playlist_resolve)
+        options.playlist_resolve();
       return Promise.resolve(metadata[link]);
+    }
     metadata[link] = Object.assign({
       status: 'queued',
       type: 'video',
@@ -92,7 +102,8 @@ async function main() {
               let { file } = await playlist_getter.download_video(
                 active, 
                 metadata[active].directory, 
-                audio_only=(metadata[active].type === 'audio'));
+                audio_only=(metadata[active].type === 'audio'),
+                prefix=metadata[active].prefix);
 
               Object.assign(metadata[active], {
                 status: 'finished',
@@ -100,6 +111,8 @@ async function main() {
               });
               update_saved_completions();
               metadata[active].resolve(metadata[active]);
+              if (metadata[active].playlist_resolve)
+                metadata[active].playlist_resolve();
 
             } catch (err) {
               Object.assign(metadata[active], {
@@ -124,8 +137,13 @@ async function main() {
 
   if (fs.existsSync(metadata_file)) {
     metadata = require(metadata_file);
-    update_saved_completions();
   }
+
+  if (fs.existsSync(playlist_file)) {
+    playlists = require(playlist_file);
+  }
+
+  clear_removed_files();
 
   let app = express();
   app.use(cors());
@@ -157,21 +175,46 @@ async function main() {
       let playlist_dir = path.join(config.playlist_path, clean(name));
       playlists[req.query.url] = {
         status: 'downloading',
-        directory: playlist_dir,
-        file: playlist_dir + ".zip",
-        name: name
+        directory: path.join(config.playlist_path, clean(name)),
+        file: path.join(config.zipped_playlist_path, clean(name)) + ".zip",
+        name: name,
+        item_status: {}
       };
-      for (let i = 0; i < items.length; i++) {
-        let link = items[i];
-        let prefix = req.query.numbered === 'true' ? pad_num(i, items.length) + ". " : "";
-        let name = prefix + await playlist_getter.get_video_name(link);
-        enqueue_link(link, {
-          type: req.query.audio_only === 'true' ? 'audio' : 'video',
-          directory: playlist_dir,
-          name: name
-        });
-      }
+      
       webutil.success(req, res, {});
+
+      let completed_items = await Promise.all(items.map(async (link, i) => {
+        playlists[req.query.url].item_status[link] = 'downloading';
+        await new Promise(async resolve => {
+          let prefix = req.query.numbered === 'true' ? pad_num(i, items.length) + ". " : "";
+          let name = prefix + await playlist_getter.get_video_name(link);
+          let result = await enqueue_link(link, {
+            type: req.query.audio_only === 'true' ? 'audio' : 'video',
+            directory: playlist_dir,
+            name: name,
+            prefix: prefix,
+            playlist_resolve: resolve
+          });
+        });
+        playlists[req.query.url].item_status[link] = 'finished';
+      }));
+
+      playlists[req.query.url].status = 'zipping';
+
+      await fsp.mkdir(config.zipped_playlist_path, { recursive: true });
+
+      await new Promise(resolve => {
+        let archive = archiver('zip');
+        archive.pipe(fs.createWriteStream(playlists[req.query.url].file));
+        for (let link of Object.keys(playlists[req.query.url].item_status)) {
+          archive.file(metadata[link].file, {name: path.basename(metadata[link].file)});
+        }
+        archive.on('end', resolve);
+        archive.finalize();
+      });
+
+      playlists[req.query.url].status = 'finished';
+      update_saved_completed_playlists();
     }
   });
 
@@ -186,19 +229,34 @@ async function main() {
 
   app.get("/view_downloads", async (req, res) => {
     await clear_removed_files();
-    webutil.success(req, res, Object.keys(metadata).map(link => {
-      let result = {
-        link: link,
-        status: metadata[link].status
-      };
-      if (metadata[link].status === 'finished') {
-        result.name = metadata[link].name;
-        result.path = metadata[link].file.replace(/^public\//, "");
-      } else if (metadata[link].status === 'failed') {
-        result.error = metadata[link].error;
-      }
-      return result;
-    }));
+    webutil.success(req, res, {
+      downloads: Object.keys(metadata).map(link => {
+        let result = {
+          link: link,
+          status: metadata[link].status,
+          name: metadata[link].name
+        };
+        if (metadata[link].status === 'finished') {
+          result.path = metadata[link].file.replace(/^public\//, "");
+        } else if (metadata[link].status === 'failed') {
+          result.error = metadata[link].error;
+        }
+        return result;
+      }),
+      playlists: Object.keys(playlists).map(link => {
+        let result = {
+          link: link,
+          status: playlists[link].status,
+          name: playlists[link].name,
+          size: Object.keys(playlists[link].item_status).length,
+          ready_count: Object.values(playlists[link].item_status).filter(s => s === 'finished').length
+        };
+        if (playlists[link].status === 'finished') {
+          result.path = playlists[link].file.replace(/^public\//, "");
+        }
+        return result;
+      })
+    });
   });
 
   app.listen(config.port, () => {

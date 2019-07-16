@@ -14,9 +14,15 @@
         <input type="button" value="Download Playlist" id="download_playlist" onclick="download_playlist()">
         <p id="download_feedback"></p>
       </div>
-      <div class="column">
-        <input type="button" value="Refresh" onclick="populate_downloaded_list()">
-        <div id="downloads_progress"></div>
+      <div class="column progress-container">
+        <div class="table-container">
+          <h3>Downloads</h3>
+          <div id="downloads_progress"></div>
+        </div>
+        <div class="table-container">
+          <h3>Playlists</h3>
+          <div id="playlists_progress"></div>
+        </div>
       </div>
     </div>
     <script src="index.js" type="text/javascript"></script>

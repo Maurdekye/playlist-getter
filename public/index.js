@@ -1,5 +1,6 @@
 let url_input = document.getElementById('url_input');
 let downloads_progress = document.getElementById('downloads_progress');
+let playlists_progress = document.getElementById('playlists_progress');
 let download_feedback = document.getElementById('download_feedback');
 let audio_only = document.getElementById('audio_only');
 let numbered = document.getElementById('numbered');
@@ -56,29 +57,54 @@ async function populate_downloaded_list() {
   if (result.error)
     throw new Error(result.errorMessage);
 
-  let html = `
+  let downloads_html = `
     <table>
       <tr>
-        <td><b>URL</b></td>
-        <td><b>Status</b></td>
+        <td><b>Link</b></td>
         <td><b>Name</b></td>
+        <td><b>Status</b></td>
         <td><b>Download Link</b></td>
       </tr>`;
 
-  for (let item of result.result) {
-    let down_link = item.path ? `<a href="${item.path}" download>Download</a>` : "";
+  for (let item of result.result.downloads) {
+    let download_link = item.path ? `<a href="${item.path}" download>Download</a>` : "";
     if (item.status === 'failed')
-      down_link = `<input type="button" value="Retry" onclick="retry_download('${item.link}')">`;
-    html += `
+      download_link = `<input type="button" value="Retry" onclick="retry_download('${item.link}')">`;
+    downloads_html += `
       <tr>
         <td><a href='${item.link}'>${item.link}</a></td>
-        <td>${item.status}</td>
         <td>${item.name ? item.name : ""}</td>
-        <td>${down_link}</td>
+        <td>${item.status}</td>
+        <td>${download_link}</td>
       </tr>`;
   }
-  html += `</table>`;
-  downloads_progress.innerHTML = html;
+  downloads_html += `</table>`;
+  downloads_progress.innerHTML = downloads_html;
+
+  let playlists_html = `
+    <table>
+      <tr>
+        <td><b>Link</b></td>
+        <td><b>Name</b></td>
+        <td><b>Status</b></td>
+        <td><b>Progress</b></td>
+        <td><b>Download Link</b></td>
+      </tr>`;
+
+  for (let item of result.result.playlists) {
+    let download_link = item.path ? `<a href="${item.path}" download>Download ZIP</a>` : "";
+    playlists_html += `
+      <tr>
+        <td><a href="${item.link}">${item.link}</a></td>
+        <td>${item.name}</td>
+        <td>${item.status}</td>
+        <td>${item.ready_count}/${item.size}</td>
+        <td>${download_link}</td>
+      </tr>`;
+  }
+  playlists_html += `</table>`;
+  playlists_progress.innerHTML = playlists_html;
+
 }
 
 populate_downloaded_list();

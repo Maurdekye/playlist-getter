@@ -39,8 +39,6 @@ module.exports = async config => {
   config = Object.assign({
     api_token: null,
     api_endpoint: "https://www.googleapis.com/youtube/v3",
-    video_path: "public/downloads/videos",
-    playlist_path: "public/downloads/playlists",
     temp_dir: "temp"
   }, config);
 
@@ -90,7 +88,7 @@ module.exports = async config => {
       }
     },
 
-    download_video: async (link, directory, audio_only=false) => {
+    download_video: async (link, directory, audio_only=false, prefix=null) => {
       await fs.mkdir(directory, { recursive: true });
 
       let { video_id } = dissect_link(link);
@@ -98,6 +96,8 @@ module.exports = async config => {
         throw new Error("Invalid video link");
 
       let video_name = await self.get_video_name(link);
+      if (prefix)
+        video_name = prefix + video_name;
       let clean_vname = clean(video_name);
       let base_file_path = path.join(directory, clean_vname);
 
