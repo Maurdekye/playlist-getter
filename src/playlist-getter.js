@@ -35,6 +35,10 @@ function clean(str) {
   return str.replace(/\/\\:\?\*"<>\|/g, "");
 }
 
+const codec_translations = {
+  'H.264': 'libx264'
+};
+
 module.exports = async config => {
   config = Object.assign({
     api_token: null,
@@ -52,7 +56,7 @@ module.exports = async config => {
 
   function prepare_api_query(endpoint, query_parameters) {
     let call = config.api_endpoint + endpoint + "?" + querystring.stringify(Object.assign(query_parameters, {key: config.api_token}));
-    console.log("API Call: " + call);
+    // console.log("API Call: " + call);
     return call;
   }
 
@@ -111,12 +115,15 @@ module.exports = async config => {
         let temp_dir = await fs.mkdtemp(path.join(config.temp_dir, `video-${clean(video_id)}-`));
         let temp_audio = path.join(temp_dir, "audio");
         let temp_video = path.join(temp_dir, "video");
+        let audio_encoding = null;
+        let video_encoding = null;
         await Promise.all([ 
           new Promise((resolve, fail) => {
             ytdl(link, {
               quality: 'highestaudio',
               filter: 'audioonly'
-            }).pipe(fsSync.createWriteStream(temp_audio))
+            }).on('info', (err, info) => audio_encoding = info.audioEncoding)
+              .pipe(fsSync.createWriteStream(temp_audio))
               .on('finish', resolve)
               .on('error', fail);
           }),
@@ -124,17 +131,21 @@ module.exports = async config => {
             ytdl(link, {
               quality: 'highestvideo',
               filter: 'videoonly'
-            }).pipe(fsSync.createWriteStream(temp_video))
+            }).on('info', (err, info) => video_encoding = info.encoding)
+              .pipe(fsSync.createWriteStream(temp_video))
               .on('finish', resolve)
               .on('error', fail);
           })
         ]);
+        video_encoding = codec_translations[video_encoding] || video_encoding;
+        audio_encoding = codec_translations[audio_encoding] || audio_encoding;
         await new Promise((resolve, fail) => {
           ffmpeg()
             .input(temp_video)
+            .videoCodec(video_encoding)
             .input(temp_audio)
-            .audioCodec('copy')
-            .output(file_path)
+            .audioCodec(audio_encoding)
+            .save(file_path)
             .on('end', resolve)
             .on('error', fail);
         });
