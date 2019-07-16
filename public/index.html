@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <title>Playlist Getter</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="column">
+        <input type="text" id="url_input">
+        <input type="button" value="Download Audio" id="download_audio" onclick="download_audio()">
+        <input type="button" value="Download Video" id="download_video" onclick="download_video()">
+        <p id="download_feedback"></p>
+      </div>
+      <div class="column">
+        <input type="button" value="Refresh" onclick="populate_downloaded_list()">
+        <div id="downloads_progress"></div>
+      </div>
+    </div>
+    <script src="index.js" type="text/javascript"></script>
+  </body>
+</html>
