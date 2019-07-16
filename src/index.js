@@ -274,6 +274,7 @@ async function main() {
 
   app.listen(config.port, () => {
     console.log(`Server hosting on port ${config.port}`);
+    console.log(`Visit http://localhost in a web browser to use the application`);
   })
 }
 
