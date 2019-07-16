@@ -31,7 +31,7 @@ try {
 }
 
 function clean(str) {
-  return str.replace(/[\/\\:?*"<>|]/g, "");
+  return str.replace(/[\/\\:?*"<>|#]/g, "");
 }
 
 function pad_num(num, size) {

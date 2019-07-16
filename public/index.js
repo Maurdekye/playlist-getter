@@ -100,7 +100,7 @@ async function populate_downloaded_list() {
       </tr>`;
 
   for (let item of result.result.playlists) {
-    let download_link = item.path ? `<a href="${item.path}" download>Download ZIP</a>` : "";
+    let download_link = item.path ? `<a href="${encodeURIComponent(item.path)}" download>Download ZIP</a>` : "";
     playlists_html += `
       <tr>
         <td><a href="${item.link}">${item.link}</a></td>
