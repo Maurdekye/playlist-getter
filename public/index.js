@@ -13,30 +13,38 @@ async function give_feedback(message, positive) {
 }
 
 async function download_video() {
-  let call = `/download_video?url=${encodeURIComponent(url_input.value)}&audio_only=${audio_only.checked}`;
-  let response = await fetch(call);
-  let result = await response.json();
-  if (!result.success) {
-    give_feedback(result.errorMessage, false);
-    throw new Error(`${result.error}: ${result.errorMessage}`);
+  if (!url_input.value) {
+    give_feedback("Paste a video link first", false);
   } else {
-    give_feedback("Download initialized", true);
-    populate_downloaded_list();
-    url_input.value = "";
+    let call = `/download_video?url=${encodeURIComponent(url_input.value)}&audio_only=${audio_only.checked}`;
+    let response = await fetch(call);
+    let result = await response.json();
+    if (!result.success) {
+      give_feedback(result.errorMessage, false);
+      throw new Error(`${result.error}: ${result.errorMessage}`);
+    } else {
+      give_feedback("Download initialized", true);
+      populate_downloaded_list();
+      url_input.value = "";
+    }
   }
 }
 
 async function download_playlist() {
-  let call = `/download_playlist?url=${encodeURIComponent(url_input.value)}&audio_only=${audio_only.checked}&numbered=${numbered.checked}`;
-  let response = await fetch(call);
-  let result = await response.json();
-  if (!result.success) {
-    give_feedback(result.errorMessage, false);
-    throw new Error(`${result.error}: ${result.errorMessage}`);
+  if (!url_input.value) {
+    give_feedback("Paste a playlist link first", false);
   } else {
-    give_feedback("Download initialized", true);
-    populate_downloaded_list();
-    url_input.value = "";
+    let call = `/download_playlist?url=${encodeURIComponent(url_input.value)}&audio_only=${audio_only.checked}&numbered=${numbered.checked}`;
+    let response = await fetch(call);
+    let result = await response.json();
+    if (!result.success) {
+      give_feedback(result.errorMessage, false);
+      throw new Error(`${result.error}: ${result.errorMessage}`);
+    } else {
+      give_feedback("Download initialized", true);
+      populate_downloaded_list();
+      url_input.value = "";
+    }
   }
 }
 
@@ -104,8 +112,11 @@ async function populate_downloaded_list() {
   }
   playlists_html += `</table>`;
   playlists_progress.innerHTML = playlists_html;
-
 }
 
 populate_downloaded_list();
-setInterval(populate_downloaded_list, 1000);
+(async () => {
+  let response = await fetch(`/view_downloads`);
+  let result = await response.json();
+  setInterval(populate_downloaded_list, result.result.poll_rate);
+})();

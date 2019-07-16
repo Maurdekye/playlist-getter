@@ -6,22 +6,25 @@
   </head>
   <body>
     <div class="container">
-      <div class="column">
-        <input type="text" id="url_input"> <br>
-        <label><input type="checkbox" id="audio_only"> Audio only?</label> <br>
-        <label><input type="checkbox" id="numbered"> Numbered?</label> <br>
-        <input type="button" value="Download Video" id="download_video" onclick="download_video()"> <br>
-        <input type="button" value="Download Playlist" id="download_playlist" onclick="download_playlist()">
-        <p id="download_feedback"></p>
+      <div class="column progress-container">
+        <div class="input-container">
+          <h1>Playlist Getter</h1>
+          <input type="text" id="url_input" placeholder="https://www.youtube.com/watch?v=V42_VekzEFU"> <br>
+          <label><input type="checkbox" id="audio_only"> Audio only?</label> <br>
+          <label><input type="checkbox" id="numbered"> Numbered?</label> <br>
+          <input type="button" value="Download Video" id="download_video" onclick="download_video()"> <br>
+          <input type="button" value="Download Playlist" id="download_playlist" onclick="download_playlist()">
+          <p id="download_feedback"></p>
+        </div>
+        <div class="table-container">
+          <h3>Playlists</h3>
+          <div id="playlists_progress"></div>
+        </div>
       </div>
       <div class="column progress-container">
         <div class="table-container">
           <h3>Downloads</h3>
           <div id="downloads_progress"></div>
-        </div>
-        <div class="table-container">
-          <h3>Playlists</h3>
-          <div id="playlists_progress"></div>
         </div>
       </div>
     </div>

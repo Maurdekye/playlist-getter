@@ -20,6 +20,7 @@ const config = Object.assign({
   zipped_playlist_path: "public/downloads/zipped-playlists",
   temp_dir: "temp",
   max_simultaneous_downloads: 5,
+  client_poll_rate: 3000,
   port: 80
 }, require(config_file));
 fs.writeFileSync(config_file, JSON.stringify(config, null, 2));
@@ -156,7 +157,7 @@ async function main() {
 
   webutil.get(app, "/download_video", ["url"], async (req, res) => {
     if (!playlist_getter.valid_video_link(req.query.url)) {
-      webutil.error(req, res, "Invalid-Link", "The given url is invalid");
+      webutil.error(req, res, "Invalid-Link", "Not a valid video link");
     } else {
       enqueue_link(req.query.url, { 
         type: req.query.audio_only === 'true' ? 'audio' : 'video',
@@ -168,7 +169,7 @@ async function main() {
 
   webutil.get(app, "/download_playlist", ["url"], async (req, res) => {
     if (!playlist_getter.valid_playlist_link(req.query.url)) {
-      webutil.error(req, res, "Invalid-Link", "The given url is invalid");
+      webutil.error(req, res, "Invalid-Link", "Not a valid playlist link");
     } else {
 
       let { name, items } = await playlist_getter.playlist_data(req.query.url);
@@ -255,7 +256,8 @@ async function main() {
           result.path = playlists[link].file.replace(/^public\//, "");
         }
         return result;
-      })
+      }),
+      poll_rate: config.client_poll_rate
     });
   });
 
