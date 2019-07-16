@@ -81,10 +81,21 @@ async function main() {
   }
 
   function enqueue_link(link, options) {
-    if (metadata[link] && metadata[link].status === 'finished') {
-      if (options.playlist_resolve)
-        options.playlist_resolve();
-      return Promise.resolve(metadata[link]);
+    if (metadata[link]) {
+      if (metadata[link].status === 'finished') {
+        if (options.playlist_resolve)
+          options.playlist_resolve();
+        return Promise.resolve(metadata[link]);
+      } else {
+        if (options.playlist_resolve) {
+          let previous_resolve = metadata[link];
+          metadata[link].playlist_resolve = () => {
+            previous_resolve();
+            options.playlist_resolve();
+          };
+        }
+        return;
+      }
     }
     metadata[link] = Object.assign({
       status: 'queued',
