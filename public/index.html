@@ -7,9 +7,11 @@
   <body>
     <div class="container">
       <div class="column">
-        <input type="text" id="url_input">
-        <input type="button" value="Download Audio" id="download_audio" onclick="download_audio()">
-        <input type="button" value="Download Video" id="download_video" onclick="download_video()">
+        <input type="text" id="url_input"> <br>
+        <label><input type="checkbox" id="audio_only"> Audio only?</label> <br>
+        <label><input type="checkbox" id="numbered"> Numbered?</label> <br>
+        <input type="button" value="Download Video" id="download_video" onclick="download_video()"> <br>
+        <input type="button" value="Download Playlist" id="download_playlist" onclick="download_playlist()">
         <p id="download_feedback"></p>
       </div>
       <div class="column">

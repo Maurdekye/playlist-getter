@@ -1,8 +1,0 @@
-{
-  "api_token": "AIzaSyBN6iZkGivswGZ76tw0djBoUESxYjKeye8",
-  "api_endpoint": "https://www.googleapis.com/youtube/v3",
-  "video_path": "public/downloads/videos",
-  "playlist_path": "public/downloads/playlists",
-  "temp_dir": "temp",
-  "port": 80
-}

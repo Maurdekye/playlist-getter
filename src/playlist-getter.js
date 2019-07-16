@@ -32,7 +32,7 @@ function dissect_link(url) {
 }
 
 function clean(str) {
-  return str.replace(/\/\\:\?\*"<>\|/g, "");
+  return str.replace(/[\/\\:?*"<>|]/g, "");
 }
 
 module.exports = async config => {
@@ -45,7 +45,7 @@ module.exports = async config => {
   }, config);
 
   if (!config.api_token) {
-    throw "Youtube api token missing";
+    throw new Error("Youtube api token missing");
   }
       
   await fs.mkdir(config.temp_dir, { recursive: true });
@@ -65,19 +65,17 @@ module.exports = async config => {
 
   let self = {
     valid_video_link: link => {
-      let link_data = dissect_link(link);
-      return link_data.video_id !== null;
+      return dissect_link(link).video_id !== null;
     },
 
     valid_playlist_link: link => {
-      let link_data = dissect_link(link);
-      return link_data.playlist_id !== null;
+      return dissect_link(link).playlist_id !== null;
     },
 
     download_video: async (link, directory, audio_only=false, prefix=null) => {
       await fs.mkdir(directory, { recursive: true });
 
-      let video_id = dissect_link(link).video_id;
+      let { video_id } = dissect_link(link);
       if (video_id === null)
         throw new Error("Invalid video link");
 
@@ -153,7 +151,7 @@ module.exports = async config => {
     },
 
     playlist_data: async link => {
-      let playlist_id = dissect_link(link).playlist_id;
+      let { playlist_id } = dissect_link(link);
       if (playlist_id === null)
         throw new Error("Invalid playlist link");
 

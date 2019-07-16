@@ -2,55 +2,117 @@ const express = require('express');
 const cors = require('cors');
 const PlaylistGetter = require('./playlist-getter');
 const webutil = require('./webutil')
+const path = require('path');
+const fs = require('fs');
+const fsp = fs.promises;
 
-const config = require('../config.json');
+const config_file = path.join(__dirname, '../config.json');
+const metadata_file = path.join(__dirname, '../downloads.json');
+
+fs.createWriteStream(config_file, { flags: 'a+' }).destroy();
+const config = Object.assign({
+  api_token: null,
+  api_endpoint: "https://www.googleapis.com/youtube/v3",
+  video_path: "public/downloads/videos",
+  playlist_path: "public/downloads/playlists",
+  temp_dir: "temp",
+  max_simultaneous_downloads: 5,
+  port: 80
+}, require(config_file));
+fs.writeFileSync(config_file, JSON.stringify(config, null, 2));
+
+function clean(str) {
+  return str.replace(/[\/\\:?*"<>|]/g, "");
+}
+
+function pad_num(num, size) {
+  return ((num + 1) + "").padStart((size + "").length, '0');
+}
 
 async function main() {
-  
-  let playlist_getter = await PlaylistGetter(config);
 
-  let in_progress = {};
-  let queue = [];
-  let queue_active = false;
+  async function access_bool(path, mode=fs.constants.F_OK) {
+    try {
+      await fsp.access(path, mode);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function filter_async(array, predicate) {
+    let filter_pass = await Promise.all(array.map(async el => [await predicate(el), el]));
+    return filter_pass.filter(([pred, _]) => pred).map(([_, el]) => el);
+  }
+
+  async function update_saved_completions() {
+    let completed_links = Object.keys(metadata).filter(link => metadata[link].status === 'finished');
+    let existing_files = await filter_async(completed_links, async link => await access_bool(metadata[link].file, fs.constants.R_OK));
+    let to_save = {};
+    for (let link of existing_files)
+      to_save[link] = metadata[link];
+    await fsp.writeFile(metadata_file, JSON.stringify(to_save, null, 2));
+  }
 
   function enqueue_link(link, options) {
+    if (metadata[link] && metadata[link].status === 'finished')
+      return Promise.resolve(metadata[link]);
+    metadata[link] = Object.assign({
+      status: 'queued',
+      type: 'video',
+      directory: config.video_path
+    }, options);
+    queue.push(link);
     return new Promise((resolve, fail) => {
-      in_progress[link] = Object.assign({
-        status: 'queued',
-        type: 'video',
-        directory: config.video_path,
+      Object.assign(metadata[link], {
         resolve: resolve,
         fail: fail
-      }, options);
-      queue.push(link);
+      });
       (async () => {
-        if (!queue_active) {
-          queue_active = true;
+        if (semaphore > 0) {
+          semaphore -= 1;
           while (queue.length > 0) {
             let active = queue.shift();
-            in_progress[active].status = 'downloading';
+            metadata[active].status = 'downloading';
             try {
-              console.log(`Downloading        ${active}`);
+
               let video_data = await playlist_getter.download_video(
                 active, 
-                in_progress[active].directory, 
-                audio_only=(in_progress[active].type === 'audio'));
-              console.log(`Finished           ${active} : '${video_data.name}'`);
-              in_progress[active].status = 'finished';
-              in_progress[active].name = video_data.name;
-              in_progress[active].file = video_data.file;
-              in_progress[active].resolve();
+                metadata[active].directory, 
+                audio_only=(metadata[active].type === 'audio'),
+                prefix=metadata[active].prefix);
+
+              Object.assign(metadata[active], {
+                status: 'finished',
+                name: video_data.name,
+                file: video_data.file
+              });
+              update_saved_completions();
+              metadata[active].resolve(metadata[active]);
+
             } catch (err) {
-              console.log(`Failed to download ${active} : ${err}`);
-              in_progress[active].status = 'failed';
-              in_progress[active].error = err;
-              in_progress[active].fail(err);
+              Object.assign(metadata[active], {
+                status: 'failed',
+                error: err
+              });
+              metadata[active].fail(err);
             }
           }
-          queue_active = false;
+          semaphore += 1;
         }
       })();
     });
+  }
+  
+  let playlist_getter = await PlaylistGetter(config);
+
+  let metadata = {};
+  let queue = [];
+  let semaphore = config.max_simultaneous_downloads;
+
+  if (fs.existsSync(metadata_file)) {
+    metadata = require(metadata_file);
+    update_saved_completions();
   }
 
   let app = express();
@@ -66,31 +128,49 @@ async function main() {
     if (!playlist_getter.valid_video_link(req.query.url)) {
       webutil.error(req, res, "Invalid-Link", "The given url is invalid");
     } else {
-      enqueue_link(req.query.url, { type: 'video' });
+      enqueue_link(req.query.url, { type: req.query.audio_only ? 'audio' : 'video' });
       webutil.success(req, res, {});
     }
   });
 
-  webutil.get(app, "/download_audio", ["url"], (req, res) => {
-    if (!playlist_getter.valid_video_link(req.query.url)) {
+  webutil.get(app, "/download_playlist", ["url"], async (req, res) => {
+    if (!playlist_getter.valid_playlist_link(req.query.url)) {
       webutil.error(req, res, "Invalid-Link", "The given url is invalid");
     } else {
-      enqueue_link(req.query.url, { type: 'audio' });
+      let { name, items } = await playlist_getter.playlist_data(req.query.url);
+      let playlist_dir = path.join(config.playlist_path, clean(name));
+      for (let i = 0; i < items.length; i++) {
+        let link = items[i];
+        enqueue_link(link, {
+          type: req.query.audio_only === 'true' ? 'audio' : 'video',
+          directory: playlist_dir,
+          prefix: req.query.numbered === 'true' ? pad_num(i, items.length) + ". " : null
+        });
+      }
+      webutil.success(req, res, {});
+    }
+  });
+
+  webutil.get(app, "/retry_download", ["url"], (req, res) => {
+    if (Object.keys(metadata).filter(link => metadata[link].status === 'failed').indexOf(req.query.url) == -1) {
+      webutil.error(req, res, "Unused-Link", "This link is not responsible for any failed downloads");
+    } else {
+      enqueue_link(req.query.url, metadata[req.query.url]);
       webutil.success(req, res, {});
     }
   });
 
   app.get("/view_downloads", (req, res) => {
-    webutil.success(req, res, Object.keys(in_progress).map(link => {
+    webutil.success(req, res, Object.keys(metadata).map(link => {
       let result = {
         link: link,
-        status: in_progress[link].status
+        status: metadata[link].status
       };
-      if (in_progress[link].status === 'finished') {
-        result.name = in_progress[link].name;
-        result.path = in_progress[link].file.replace(/^public\//, "");
-      } else if (in_progress[link].status === 'failed') {
-        result.error = in_progress[link].error;
+      if (metadata[link].status === 'finished') {
+        result.name = metadata[link].name;
+        result.path = metadata[link].file.replace(/^public\//, "");
+      } else if (metadata[link].status === 'failed') {
+        result.error = metadata[link].error;
       }
       return result;
     }));
