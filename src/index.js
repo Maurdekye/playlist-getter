@@ -128,7 +128,7 @@ async function main() {
     if (!playlist_getter.valid_video_link(req.query.url)) {
       webutil.error(req, res, "Invalid-Link", "The given url is invalid");
     } else {
-      enqueue_link(req.query.url, { type: req.query.audio_only ? 'audio' : 'video' });
+      enqueue_link(req.query.url, { type: req.query.audio_only === 'true' ? 'audio' : 'video' });
       webutil.success(req, res, {});
     }
   });

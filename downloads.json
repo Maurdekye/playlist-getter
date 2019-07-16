@@ -1,50 +1,9 @@
 {
-  "https://www.youtube.com/watch?v=dqZ8vr_Q4UI": {
+  "https://www.youtube.com/watch?v=zczGA4BSw-4&t=93s": {
     "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "04. ",
-    "name": "04. EXACTLY WHAT YOU RUN FROM YOU END UP CHASING",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/04. EXACTLY WHAT YOU RUN FROM YOU END UP CHASING.mp3"
-  },
-  "https://www.youtube.com/watch?v=Uyf_lImpdRw": {
-    "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "05. ",
-    "name": "05. RUNNING OUT OF TIME",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/05. RUNNING OUT OF TIME.mp3"
-  },
-  "https://www.youtube.com/watch?v=6S20mJvr4vs": {
-    "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "01. ",
-    "name": "01. IGOR'S THEME",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/01. IGOR'S THEME.mp3"
-  },
-  "https://www.youtube.com/watch?v=t-E2gm0a_N0": {
-    "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "02. ",
-    "name": "02. EARFQUAKE",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/02. EARFQUAKE.mp3"
-  },
-  "https://www.youtube.com/watch?v=m91Vq-Yd3BA": {
-    "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "03. ",
-    "name": "03. I THINK",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/03. I THINK.mp3"
-  },
-  "https://www.youtube.com/watch?v=2w8KUgIkAu8": {
-    "status": "finished",
-    "type": "audio",
-    "directory": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)",
-    "prefix": "06. ",
-    "name": "06. NEW MAGIC WAND",
-    "file": "public/downloads/playlists/IGOR - Tyler, The Creator (Full Album)/06. NEW MAGIC WAND.mp3"
+    "type": "video",
+    "directory": "public/downloads/videos",
+    "name": "Minecraft EARTH Early Access (Closed Beta)",
+    "file": "public/downloads/videos/Minecraft EARTH Early Access (Closed Beta).mp4"
   }
 }
