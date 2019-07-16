@@ -23,11 +23,11 @@ let default_config = {
   port: 80
 }
 try {
-  fs.writeFileSync(config_file, JSON.stringify(default_config, null, 2), { flags: 'wx' });
+  fs.writeFileSync(config_file, JSON.stringify(default_config, null, 2), { flag: 'wx' });
   config = default_config;
 } catch (err) {
   config = Object.assign(default_config, require(config_file));
-  fs.writeFileSync(config_file, JSON.stringify(config, null, 2), { flags: 'w' });
+  fs.writeFileSync(config_file, JSON.stringify(config, null, 2), { flag: 'w' });
 }
 
 function clean(str) {
@@ -134,8 +134,9 @@ async function main() {
     });
   }
   
+  let playlist_getter = null;
   try {
-    let playlist_getter = await PlaylistGetter(config);
+    playlist_getter = await PlaylistGetter(config);
   } catch (err) {
     console.log(err.message + `; check ${path.basename(config_file)}`);
     return;
@@ -171,7 +172,7 @@ async function main() {
     } else {
       enqueue_link(req.query.url, { 
         type: req.query.audio_only === 'true' ? 'audio' : 'video',
-        name: await playlist_getter.get_video_name(req.query.link)
+        name: await playlist_getter.get_video_name(req.query.url)
       });
       webutil.success(req, res, {});
     }
