@@ -178,7 +178,7 @@ module.exports = async config => {
         if (result.nextPageToken)
           query_args.pageToken = result.nextPageToken;
         result = await fetch_api_query("/playlistItems", query_args);
-        items = items.concat(result.items.map(item => `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`));
+        items = items.concat(result.items.filter(item => item.contentDetails.videoPublishedAt).map(item => `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`));
       } while (result.nextPageToken);
 
       result = await fetch_api_query("/playlists", {
