@@ -31,7 +31,7 @@ try {
 }
 
 function clean(str) {
-  return str.replace(/[\/\\:?*"<>|#]/g, "");
+  return str.replace(/[\/\\:?*"<>|]/g, "");
 }
 
 function pad_num(num, size) {
@@ -260,7 +260,7 @@ async function main() {
           name: metadata[link].name
         };
         if (metadata[link].status === 'finished') {
-          result.path = metadata[link].file.replace(/^public\//, "");
+          result.path = metadata[link].file.replace(/^public(\/|\\)/, "");
         } else if (metadata[link].status === 'failed') {
           result.error = metadata[link].error;
         }

@@ -32,7 +32,7 @@ function dissect_link(url) {
 }
 
 function clean(str) {
-  return str.replace(/[\/\\:?*"<>|#]/g, "");
+  return str.replace(/[\/\\:?*"<>|]/g, "");
 }
 
 module.exports = async config => {
