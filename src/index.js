@@ -275,7 +275,7 @@ async function main() {
           ready_count: Object.values(playlists[link].item_status).filter(s => s === 'finished').length
         };
         if (playlists[link].status === 'finished') {
-          result.path = playlists[link].file.replace(/^public\//, "");
+          result.path = playlists[link].file.replace(/^public(\/|\\)/, "");
         }
         return result;
       }),
