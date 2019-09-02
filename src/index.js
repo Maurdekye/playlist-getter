@@ -144,6 +144,13 @@ async function main() {
       })();
     });
   }
+
+  function encode_filepath(path) {
+    let encoded = path.replace(/\\/g, "/");
+    encoded = encoded.replace(/^public\//, "");
+    encoded = encoded.split("/").map(encodeURIComponent).join("/");
+    return encoded;
+  }
   
   let playlist_getter = null;
   try {
@@ -260,7 +267,7 @@ async function main() {
           name: metadata[link].name
         };
         if (metadata[link].status === 'finished') {
-          result.path = metadata[link].file.replace(/^public(\/|\\)/, "");
+          result.path = encode_filepath(metadata[link].file);
         } else if (metadata[link].status === 'failed') {
           result.error = metadata[link].error;
         }
@@ -275,7 +282,7 @@ async function main() {
           ready_count: Object.values(playlists[link].item_status).filter(s => s === 'finished').length
         };
         if (playlists[link].status === 'finished') {
-          result.path = playlists[link].file.replace(/^public(\/|\\)/, "");
+          result.path = encode_filepath(playlists[link].file);
         }
         return result;
       }),
