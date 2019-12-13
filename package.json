@@ -23,7 +23,7 @@
     "express": "^4.17.1",
     "fluent-ffmpeg": "^2.1.2",
     "node-fetch": "^2.6.0",
-    "npm": "^6.10.2",
+    "npm": "^6.13.4",
     "ytdl-core": "^0.29.3"
   }
 }
